@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minha Conta — Bahianá</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap" />
+  <style>
+    :root {
+      --bg: #FFF8EC; --surface: #FFFFFF; --ink: #3A2118; --text-muted: #7A5B48;
+      --purple: #7B1E7A; --purple-soft: #F1E0F0; --gold: #F5C542; --magenta: #B0269E;
+      --shadow-ink: 4px 4px 0 var(--ink); --shadow-ink-sm: 2px 2px 0 var(--ink);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--ink); font-family: 'Nunito', sans-serif; font-weight: 600;
+      min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2.5rem 1rem;
+    }
+    h1 { font-family: 'Baloo 2', sans-serif; color: var(--purple); font-size: 1.8rem; margin-bottom: 0.3rem; text-align: center; }
+    p.sub { color: var(--text-muted); font-weight: 700; margin-bottom: 1.8rem; text-align: center; }
+    .card {
+      background: var(--surface); border: 3px solid var(--ink); border-radius: 18px; padding: 1.6rem;
+      box-shadow: var(--shadow-ink); width: 100%; max-width: 380px;
+    }
+    label { display: block; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; margin: 0.9rem 0 0.35rem; color: var(--text-muted); }
+    label:first-of-type { margin-top: 0; }
+    input {
+      width: 100%; border: 2.5px solid var(--ink); border-radius: 10px; padding: 0.65rem 0.8rem;
+      font: inherit; font-size: 0.95rem; font-weight: 700; color: var(--ink); background: var(--bg);
+    }
+    input:focus-visible { outline: 2px solid var(--purple); }
+    button.principal {
+      width: 100%; margin-top: 1.4rem; background: var(--purple); color: #FFF8EC; border: 3px solid var(--ink);
+      border-radius: 999px; padding: 0.8rem; font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 1rem;
+      cursor: pointer; box-shadow: var(--shadow-ink-sm);
+    }
+    button.principal:active { transform: translate(1px, 1px); box-shadow: none; }
+    .trocar { display: block; text-align: center; margin-top: 1rem; font-size: 0.85rem; font-weight: 700; color: var(--purple); background: none; border: none; cursor: pointer; text-decoration: underline; }
+    .erro { color: var(--magenta); font-size: 0.85rem; font-weight: 700; margin-top: 0.8rem; display: none; }
+    .erro.visible { display: block; }
+
+    .pontos-box { background: var(--gold); border: 3px solid var(--ink); border-radius: 14px; padding: 1.2rem; text-align: center; margin-bottom: 1.2rem; }
+    .pontos-num { font-family: 'Baloo 2', sans-serif; font-size: 2.2rem; font-weight: 800; }
+    .pontos-label { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; }
+    .pontos-desconto { font-size: 0.85rem; font-weight: 700; margin-top: 0.4rem; }
+
+    .pedido-linha { display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px dashed var(--text-muted); font-size: 0.85rem; }
+    .pedido-linha:last-child { border-bottom: none; }
+    .status-pill { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 999px; }
+    .status-pendente { background: var(--purple-soft); color: var(--purple); }
+    .status-confirmado { background: #DDF0C8; color: #1F2E0B; }
+    .status-cancelado { background: #F5DADA; color: #7A1E1E; }
+
+    .sair { display: block; width: 100%; margin-top: 1.2rem; background: none; border: 2.5px solid var(--ink); border-radius: 999px; padding: 0.6rem; font-weight: 800; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Bahianá</h1>
+  <p class="sub" id="subtitulo">Entre ou crie sua conta pra acumular pontos</p>
+
+  <div class="card" id="cardAuth">
+    <div id="campoNome">
+      <label for="nome">Seu nome</label>
+      <input type="text" id="nome" placeholder="Como podemos te chamar?">
+    </div>
+    <label for="telefone">Telefone</label>
+    <input type="tel" id="telefone" placeholder="(41) 90000-0000">
+    <label for="pin">Senha (4 números)</label>
+    <input type="password" id="pin" inputmode="numeric" maxlength="4" placeholder="••••">
+    <button class="principal" id="btnAuth">Entrar</button>
+    <button class="trocar" id="btnTrocar">Ainda não tenho conta — criar agora</button>
+    <p class="erro" id="erroMsg"></p>
+  </div>
+
+  <div class="card" id="cardDashboard" style="display:none;">
+    <div class="pontos-box">
+      <div class="pontos-num" id="pontosNum">0</div>
+      <div class="pontos-label">pontos acumulados</div>
+      <div class="pontos-desconto" id="pontosDesconto"></div>
+    </div>
+    <div id="listaPedidos"></div>
+    <button class="sair" id="btnSair">Sair da conta</button>
+  </div>
+
+  <script>
+    const API = location.origin;
+    const params = new URLSearchParams(location.search);
+    const redirect = params.get('redirect');
+
+    let modoCadastro = true; // começa em cadastro pra facilitar 1º acesso
+
+    const cardAuth = document.getElementById('cardAuth');
+    const cardDashboard = document.getElementById('cardDashboard');
+    const subtitulo = document.getElementById('subtitulo');
+    const campoNome = document.getElementById('campoNome');
+    const btnAuth = document.getElementById('btnAuth');
+    const btnTrocar = document.getElementById('btnTrocar');
+    const erroMsg = document.getElementById('erroMsg');
+
+    function atualizarModo() {
+      campoNome.style.display = modoCadastro ? 'block' : 'none';
+      btnAuth.textContent = modoCadastro ? 'Criar minha conta' : 'Entrar';
+      btnTrocar.textContent = modoCadastro ? 'Já tenho conta — entrar' : 'Ainda não tenho conta — criar agora';
+      subtitulo.textContent = modoCadastro ? 'Crie sua conta pra acumular pontos' : 'Entre na sua conta';
+      erroMsg.classList.remove('visible');
+    }
+    btnTrocar.addEventListener('click', () => { modoCadastro = !modoCadastro; atualizarModo(); });
+    atualizarModo();
+
+    function mostrarErro(msg) {
+      erroMsg.textContent = msg;
+      erroMsg.classList.add('visible');
+    }
+
+    async function autenticar() {
+      const nome = document.getElementById('nome').value.trim();
+      const telefone = document.getElementById('telefone').value.trim();
+      const pin = document.getElementById('pin').value.trim();
+
+      const rota = modoCadastro ? '/api/signup' : '/api/login';
+      const corpo = modoCadastro ? { nome, telefone, pin } : { telefone, pin };
+
+      try {
+        const resp = await fetch(API + rota, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(corpo),
+        });
+        const dados = await resp.json();
+        if (!resp.ok) { mostrarErro(dados.erro || 'Algo deu errado.'); return; }
+
+        localStorage.setItem('bahiana-token', dados.token);
+
+        if (redirect) {
+          location.href = redirect + (redirect.includes('?') ? '&' : '?') + 'session=' + encodeURIComponent(dados.token);
+          return;
+        }
+        mostrarDashboard();
+      } catch (e) {
+        mostrarErro('Não consegui conectar. Tenta de novo em instantes.');
+      }
+    }
+    btnAuth.addEventListener('click', autenticar);
+
+    async function mostrarDashboard() {
+      const token = localStorage.getItem('bahiana-token');
+      if (!token) return;
+
+      const resp = await fetch(API + '/api/me', { headers: { Authorization: 'Bearer ' + token } });
+      if (!resp.ok) { localStorage.removeItem('bahiana-token'); return; }
+      const dados = await resp.json();
+
+      cardAuth.style.display = 'none';
+      cardDashboard.style.display = 'block';
+      subtitulo.textContent = 'Olá, ' + dados.cliente.nome + '! 🍇';
+
+      document.getElementById('pontosNum').textContent = dados.cliente.pontos;
+      const descontoDisponivel = Math.floor(dados.cliente.pontos / 100) * 10;
+      document.getElementById('pontosDesconto').textContent = descontoDisponivel > 0
+        ? `Você já pode resgatar R$ ${descontoDisponivel} de desconto! Mencione no pedido pelo WhatsApp.`
+        : `A cada 100 pontos, R$10 de desconto no pedido.`;
+
+      const lista = document.getElementById('listaPedidos');
+      if (dados.pedidos.length === 0) {
+        lista.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:0.85rem;">Nenhum pedido ainda.</p>';
+      } else {
+        lista.innerHTML = dados.pedidos.map((p) => `
+          <div class="pedido-linha">
+            <span>Pedido #${p.id} — R$ ${p.total.toFixed(2).replace('.', ',')}</span>
+            <span class="status-pill status-${p.status}">${p.status}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    document.getElementById('btnSair').addEventListener('click', () => {
+      localStorage.removeItem('bahiana-token');
+      location.reload();
+    });
+
+    if (localStorage.getItem('bahiana-token')) mostrarDashboard();
+  </script>
+</body>
+</html>

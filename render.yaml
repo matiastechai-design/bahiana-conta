@@ -1,0 +1,36 @@
+# Blueprint do Render. No painel: New → Blueprint → aponta pro repositório.
+# O banco NÃO fica aqui — use um Postgres do Neon (grátis e persistente) e cole
+# a connection string em DATABASE_URL nas Environment Variables do serviço.
+services:
+  - type: web
+    name: bahiana-conta
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PUBLIC_URL
+        sync: false
+      - key: CAKTO_CLIENT_ID
+        sync: false
+      - key: CAKTO_CLIENT_SECRET
+        sync: false
+      - key: CAKTO_PRODUCT_ID
+        sync: false
+      - key: CAKTO_WEBHOOK_SECRET
+        sync: false
+      - key: LOJA_WHATSAPP
+        value: "5541984046124"
+      - key: BOT_NOTIFY_URL
+        sync: false
+      - key: BOT_NOTIFY_TOKEN
+        sync: false

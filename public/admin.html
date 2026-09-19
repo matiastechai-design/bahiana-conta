@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel Admin — Bahianá</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap" />
+  <style>
+    :root {
+      --bg: #FFF8EC; --surface: #FFFFFF; --ink: #3A2118; --text-muted: #7A5B48;
+      --purple: #7B1E7A; --purple-soft: #F1E0F0; --gold: #F5C542; --magenta: #B0269E;
+      --shadow-ink-sm: 2px 2px 0 var(--ink);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--ink); font-family: 'Nunito', sans-serif; font-weight: 600; padding: 1.5rem; }
+    h1 { font-family: 'Baloo 2', sans-serif; color: var(--purple); margin-bottom: 1.2rem; }
+    h2 { font-family: 'Baloo 2', sans-serif; font-size: 1.1rem; margin: 1.8rem 0 0.7rem; }
+
+    #loginBox { max-width: 320px; margin: 4rem auto; background: var(--surface); border: 3px solid var(--ink); border-radius: 14px; padding: 1.5rem; text-align: center; }
+    #loginBox input { width: 100%; border: 2.5px solid var(--ink); border-radius: 8px; padding: 0.6rem; margin: 0.8rem 0; font: inherit; }
+    #loginBox button { background: var(--purple); color: #FFF8EC; border: 2.5px solid var(--ink); border-radius: 999px; padding: 0.6rem 1.2rem; font-weight: 800; cursor: pointer; }
+
+    #painel { display: none; max-width: 1000px; margin: 0 auto; }
+
+    .toolbar { display: flex; gap: 0.6rem; align-items: center; margin-bottom: 0.6rem; }
+    .toolbar a, .toolbar button {
+      background: var(--gold); color: var(--ink); border: 2.5px solid var(--ink); border-radius: 999px;
+      padding: 0.45rem 0.9rem; font-weight: 800; font-size: 0.82rem; text-decoration: none; cursor: pointer;
+    }
+
+    table { width: 100%; border-collapse: collapse; background: var(--surface); border: 2.5px solid var(--ink); border-radius: 10px; overflow: hidden; }
+    th, td { text-align: left; padding: 0.55rem 0.7rem; font-size: 0.85rem; border-bottom: 1px solid var(--purple-soft); }
+    th { background: var(--purple-soft); color: var(--purple); font-size: 0.72rem; text-transform: uppercase; }
+    tr:last-child td { border-bottom: none; }
+
+    .status-pill { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 999px; }
+    .status-pendente { background: var(--purple-soft); color: var(--purple); }
+    .status-confirmado { background: #DDF0C8; color: #1F2E0B; }
+    .status-cancelado { background: #F5DADA; color: #7A1E1E; }
+
+    .btn-mini { border: 2px solid var(--ink); border-radius: 999px; padding: 0.2rem 0.6rem; font-size: 0.72rem; font-weight: 800; cursor: pointer; margin-right: 0.3rem; }
+    .btn-confirmar { background: #8CBE3F; }
+    .btn-cancelar { background: #F5DADA; }
+    .vazio { color: var(--text-muted); font-size: 0.85rem; padding: 1rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div id="loginBox">
+    <h1 style="font-size:1.3rem;">Painel Bahianá</h1>
+    <input type="password" id="senhaAdmin" placeholder="Senha de admin">
+    <button id="btnEntrar">Entrar</button>
+    <p id="erroLogin" style="color:var(--magenta);font-size:0.8rem;margin-top:0.6rem;"></p>
+  </div>
+
+  <div id="painel">
+    <h1>Painel Bahianá</h1>
+
+    <h2>Pedidos pendentes</h2>
+    <div class="toolbar"><button id="btnAtualizar">🔄 Atualizar</button></div>
+    <div id="tabelaPedidos"></div>
+
+    <h2>Clientes cadastrados</h2>
+    <div class="toolbar"><button id="btnExport">⬇️ Exportar CSV</button></div>
+    <div id="tabelaClientes"></div>
+  </div>
+
+  <script>
+    const API = location.origin;
+    let senha = sessionStorage.getItem('bahiana-admin-senha') || '';
+
+    function headersAdmin() { return { 'X-Admin-Password': senha }; }
+
+    async function tentarEntrar() {
+      senha = document.getElementById('senhaAdmin').value;
+      const resp = await fetch(API + '/api/admin/customers', { headers: headersAdmin() });
+      if (!resp.ok) {
+        document.getElementById('erroLogin').textContent = 'Senha incorreta.';
+        return;
+      }
+      sessionStorage.setItem('bahiana-admin-senha', senha);
+      document.getElementById('loginBox').style.display = 'none';
+      document.getElementById('painel').style.display = 'block';
+      carregarTudo();
+    }
+    document.getElementById('btnEntrar').addEventListener('click', tentarEntrar);
+
+    async function exportarCsv() {
+      const resp = await fetch(API + '/api/admin/customers.csv', { headers: headersAdmin() });
+      if (!resp.ok) return;
+      const texto = await resp.text();
+      const blob = new Blob([texto], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'clientes-bahiana.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+    document.getElementById('btnExport').addEventListener('click', exportarCsv);
+
+    function formatarPreco(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
+
+    const ROTULO_STATUS = {
+      aguardando_pagamento: '⏳ aguardando pagamento',
+      pago: '💚 PAGO — preparar',
+      pendente: '📥 pagar na entrega',
+      confirmado: '✓ entregue',
+      cancelado: '✕ cancelado',
+    };
+
+    async function carregarPedidos() {
+      const resp = await fetch(API + '/api/admin/orders', { headers: headersAdmin() });
+      const { pedidos: todos } = await resp.json();
+      // esconde cancelados e pix ainda não pago
+      const pedidos = todos.filter((p) => !['cancelado', 'aguardando_pagamento'].includes(p.status));
+      const el = document.getElementById('tabelaPedidos');
+
+      if (pedidos.length === 0) { el.innerHTML = '<p class="vazio">Nenhum pedido em aberto. 🎉</p>'; return; }
+
+      el.innerHTML = `
+        <table>
+          <thead><tr><th>#</th><th>Status</th><th>Cliente</th><th>Telefone</th><th>Itens</th><th>Total</th><th>Pontos</th><th>Ações</th></tr></thead>
+          <tbody>
+            ${pedidos.map((p) => `
+              <tr>
+                <td>${p.id}</td>
+                <td>${ROTULO_STATUS[p.status] || p.status}</td>
+                <td>${p.cliente_nome || '-'}</td>
+                <td>${p.cliente_telefone || '-'}</td>
+                <td>${(p.itens || []).map((i) => `${i.qtd || 1}x ${i.nome}`).join('<br>')}</td>
+                <td>${formatarPreco(p.total)}</td>
+                <td>+${p.pontos_ganhos}</td>
+                <td>
+                  ${p.status === 'confirmado' ? '' : `<button class="btn-mini btn-confirmar" data-id="${p.id}" data-acao="confirmar">✓ ${p.status === 'pago' ? 'Marcar entregue' : 'Confirmar'}</button>`}
+                  <button class="btn-mini btn-cancelar" data-id="${p.id}" data-acao="cancelar">✕ Cancelar</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+
+      el.querySelectorAll('button[data-acao]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await fetch(`${API}/api/admin/orders/${btn.dataset.id}/${btn.dataset.acao}`, { method: 'POST', headers: headersAdmin() });
+          carregarTudo();
+        });
+      });
+    }
+
+    async function carregarClientes() {
+      const resp = await fetch(API + '/api/admin/customers', { headers: headersAdmin() });
+      const { clientes } = await resp.json();
+      const el = document.getElementById('tabelaClientes');
+
+      if (clientes.length === 0) { el.innerHTML = '<p class="vazio">Nenhum cliente cadastrado ainda.</p>'; return; }
+
+      el.innerHTML = `
+        <table>
+          <thead><tr><th>Nome</th><th>Telefone</th><th>Pontos</th><th>Pedidos</th><th>Total gasto</th><th>Desde</th></tr></thead>
+          <tbody>
+            ${clientes.map((c) => `
+              <tr>
+                <td>${c.nome}</td>
+                <td>${c.telefone}</td>
+                <td>${c.pontos}</td>
+                <td>${c.total_pedidos}</td>
+                <td>${formatarPreco(c.total_gasto)}</td>
+                <td>${new Date(c.criado_em).toLocaleDateString('pt-BR')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    function carregarTudo() { carregarPedidos(); carregarClientes(); }
+    document.getElementById('btnAtualizar').addEventListener('click', carregarTudo);
+
+    if (senha) {
+      document.getElementById('loginBox').style.display = 'none';
+      document.getElementById('painel').style.display = 'block';
+      carregarTudo();
+    }
+  </script>
+</body>
+</html>

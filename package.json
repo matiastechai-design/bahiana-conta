@@ -1,0 +1,20 @@
+{
+  "name": "bahiana-conta",
+  "version": "2.0.0",
+  "description": "Backend de contas, pontos, pedidos e pagamento (Cakto) da Bahianá",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "setup-cakto": "node scripts/setup-cakto.mjs"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}
